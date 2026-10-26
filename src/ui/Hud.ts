@@ -3,6 +3,7 @@ import { THEME } from '../render/theme.ts';
 
 export interface HudState {
   score: number;
+  best: number;
   lives: number;
   maxLives: number;
 }
@@ -18,6 +19,14 @@ export function drawHud(r: Renderer, height: number, state: HudState): void {
 
   r.text('SCORE', pad, labelY, { size: 13, weight: 700, color: THEME.subText });
   r.text(String(state.score), pad, valueY, { size: 26, weight: 800, color: THEME.text });
+
+  r.text('BEST', r.width / 2, labelY, { size: 13, weight: 700, color: THEME.subText, align: 'center' });
+  r.text(String(Math.max(state.best, state.score)), r.width / 2, valueY, {
+    size: 20,
+    weight: 700,
+    color: THEME.subText,
+    align: 'center',
+  });
 
   r.text('LIFE', r.width - pad, labelY, {
     size: 13,

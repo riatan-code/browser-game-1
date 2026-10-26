@@ -11,6 +11,14 @@ export interface PointerState {
 /** ブラウザのスクロール等を抑止するキー */
 const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space']);
 
+function isTextField(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
 /**
  * キーボードとポインタ (マウス/タッチ/ペン) の入力を集約する。
  * Pointer Events でマウスとタッチを統一的に扱い、座標は論理座標に変換済みで提供する。
@@ -28,6 +36,7 @@ export class Input {
   private pointerPressedFlag = false;
   private pointerReleasedFlag = false;
   private pointerMovedFlag = false;
+  private readonly tapHandlers = new Set<(x: number, y: number) => void>();
 
   /** 最後に操作されたポインタの位置 (ホバー位置を含む) */
   readonly pointer = { x: 0, y: 0 };
@@ -45,6 +54,17 @@ export class Input {
     canvas.addEventListener('pointerup', this.onPointerUp);
     canvas.addEventListener('pointercancel', this.onPointerUp);
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('click', this.onClick);
+  }
+
+  /**
+   * クリック/タップ時にイベントハンドラ内で即座に呼ばれるコールバックを登録する (座標は論理座標)。
+   * window.open やオーディオの再生開始など、ユーザー操作の中で実行する必要がある処理に使う。
+   * 戻り値の関数を呼ぶと登録解除。
+   */
+  onTap(handler: (x: number, y: number) => void): () => void {
+    this.tapHandlers.add(handler);
+    return () => this.tapHandlers.delete(handler);
   }
 
   // ---- keyboard (KeyboardEvent.code を使用: 'KeyW', 'ArrowUp', 'Space' など) ----
@@ -101,6 +121,8 @@ export class Input {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
+    // 名前入力などのフォーム操作中はゲーム入力として扱わない (スペース入力も妨げない)
+    if (isTextField(e.target)) return;
     if (GAME_KEYS.has(e.code)) e.preventDefault();
     if (e.repeat) return;
     this.keysDown.add(e.code);
@@ -133,6 +155,12 @@ export class Input {
     if (this.activePointers.has(e.pointerId)) {
       this.activePointers.set(e.pointerId, state);
     }
+  };
+
+  private readonly onClick = (e: MouseEvent): void => {
+    const rect = this.canvas.getBoundingClientRect();
+    const { x, y } = this.viewport.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+    for (const handler of this.tapHandlers) handler(x, y);
   };
 
   private readonly onPointerUp = (e: PointerEvent): void => {

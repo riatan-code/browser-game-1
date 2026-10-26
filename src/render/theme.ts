@@ -8,6 +8,10 @@ export const THEME = {
   accent: '#4dabf7',
   danger: '#ff6b6b',
   overlay: 'rgba(7, 8, 15, 0.78)',
+  /** 情報量の多いリザルト画面用の濃いオーバーレイ */
+  overlayStrong: 'rgba(7, 8, 15, 0.93)',
+  secondaryButton: '#2a3054',
+  highlight: '#fcc419',
   paddle: '#eef0fa',
   ball: '#ffffff',
   buttonText: '#0b0e1f',

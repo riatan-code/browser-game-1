@@ -108,6 +108,8 @@ export class Renderer {
       weight?: number;
       align?: CanvasTextAlign;
       font?: string;
+      /** 超える場合は横方向に縮めて収める */
+      maxWidth?: number;
     } = {},
   ): void {
     const {
@@ -116,11 +118,16 @@ export class Renderer {
       weight = 400,
       align = 'left',
       font = 'system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif',
+      maxWidth,
     } = options;
     this.ctx.fillStyle = color;
     this.ctx.font = `${weight} ${size}px ${font}`;
     this.ctx.textAlign = align;
     this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(str, x, y);
+    if (maxWidth === undefined) {
+      this.ctx.fillText(str, x, y);
+    } else {
+      this.ctx.fillText(str, x, y, maxWidth);
+    }
   }
 }

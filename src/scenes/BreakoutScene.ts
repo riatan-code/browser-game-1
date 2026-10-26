@@ -1,15 +1,20 @@
+import { RANKING_CONFIG, SHARE_CONFIG } from '../config.ts';
 import type { Scene } from '../core/Scene.ts';
 import { BreakoutWorld } from '../game/BreakoutWorld.ts';
 import { BREAKOUT_CONFIG } from '../game/config.ts';
 import type { Controls } from '../game/types.ts';
 import type { Input } from '../input/Input.ts';
+import { DEFAULT_PLAYER_NAME, sanitizeName } from '../ranking/ranking.ts';
+import { RankingStore } from '../ranking/RankingStore.ts';
 import { drawWorld } from '../render/BreakoutView.ts';
 import type { Renderer } from '../render/Renderer.ts';
+import { gameUrl, openXShare } from '../share/shareToX.ts';
 import { Button } from '../ui/Button.ts';
 import { drawHud } from '../ui/Hud.ts';
+import { NameEntryDialog } from '../ui/NameEntryDialog.ts';
 import { drawResultScreen, drawServeHint, drawTitleScreen } from '../ui/screens.ts';
 
-/** リザルト画面で、プレイ中の連打による誤リトライを防ぐ待ち時間 (秒) */
+/** リザルト画面で、プレイ中の連打による誤操作を防ぐ待ち時間 (秒) */
 const RESULT_INPUT_DELAY = 0.6;
 
 /**
@@ -18,17 +23,50 @@ const RESULT_INPUT_DELAY = 0.6;
  */
 export class BreakoutScene implements Scene {
   private readonly world: BreakoutWorld;
+  private readonly ranking = new RankingStore(
+    RANKING_CONFIG.storageKey,
+    RANKING_CONFIG.nameKey,
+    RANKING_CONFIG.size,
+  );
+  private readonly nameDialog: NameEntryDialog;
   private readonly startButton: Button;
   private readonly retryButton: Button;
+  private readonly shareButton: Button;
   private phaseTime = 0;
+  /** 直近のゲームの順位 (0始まり、圏外・未登録なら null) */
+  private lastRank: number | null = null;
+  private unsubscribeTap: (() => void) | null = null;
 
-  constructor(width: number, height: number) {
+  /**
+   * @param uiRoot 名前入力ダイアログなど HTML の UI を配置する要素
+   */
+  constructor(
+    width: number,
+    height: number,
+    private readonly input: Input,
+    uiRoot: HTMLElement,
+  ) {
     this.world = new BreakoutWorld(width, height);
+    this.nameDialog = new NameEntryDialog(uiRoot, RANKING_CONFIG.nameMaxLength);
     this.startButton = new Button('START', width / 2, 680);
-    this.retryButton = new Button('RETRY', width / 2, 640);
-    this.world.events.on('phaseChange', () => {
+    this.retryButton = new Button('RETRY', width / 2, 655);
+    this.shareButton = new Button('X でシェア', width / 2, 740, 240, 60, 'secondary');
+    this.world.events.on('phaseChange', ({ phase }) => {
       this.phaseTime = 0;
+      if (phase === 'gameover' || phase === 'clear') this.onGameEnd(phase === 'clear');
     });
+  }
+
+  enter(): void {
+    // window.open はユーザー操作のイベント内でしか許可されないため、クリック時に直接処理する
+    this.unsubscribeTap = this.input.onTap((x, y) => {
+      if (this.isResultInteractive() && this.shareButton.contains(x, y)) this.share();
+    });
+  }
+
+  exit(): void {
+    this.unsubscribeTap?.();
+    this.unsubscribeTap = null;
   }
 
   update(dt: number, input: Input): void {
@@ -43,7 +81,7 @@ export class BreakoutScene implements Scene {
         return;
       case 'gameover':
       case 'clear': {
-        if (this.phaseTime < RESULT_INPUT_DELAY) return;
+        if (!this.isResultInteractive()) return;
         const onButton =
           input.isPointerPressed && this.retryButton.contains(input.pointer.x, input.pointer.y);
         if (onButton || confirmKey) world.newGame();
@@ -59,6 +97,7 @@ export class BreakoutScene implements Scene {
     drawWorld(r, world, alpha);
     drawHud(r, BREAKOUT_CONFIG.field.top, {
       score: world.score,
+      best: this.ranking.best,
       lives: world.lives,
       maxLives: world.maxLives,
     });
@@ -72,9 +111,54 @@ export class BreakoutScene implements Scene {
         break;
       case 'gameover':
       case 'clear':
-        drawResultScreen(r, world.phase, world.score, this.retryButton);
+        drawResultScreen(r, {
+          kind: world.phase,
+          score: world.score,
+          rank: this.lastRank,
+          ranking: this.ranking.list,
+          retryButton: this.retryButton,
+          shareButton: this.shareButton,
+        });
         break;
     }
+  }
+
+  private isResultInteractive(): boolean {
+    const { phase } = this.world;
+    return (
+      (phase === 'gameover' || phase === 'clear') &&
+      this.phaseTime >= RESULT_INPUT_DELAY &&
+      !this.nameDialog.isOpen
+    );
+  }
+
+  /** ランクインしていれば名前入力を求め、登録されたらランキングに記録する */
+  private onGameEnd(cleared: boolean): void {
+    this.lastRank = null;
+    const { score } = this.world;
+    const rank = this.ranking.previewRank(score);
+    if (rank === null) return;
+
+    this.nameDialog.open({
+      score,
+      rank,
+      defaultName: this.ranking.lastName,
+      onSubmit: (rawName) => {
+        const name = sanitizeName(rawName, RANKING_CONFIG.nameMaxLength) || DEFAULT_PLAYER_NAME;
+        this.lastRank = this.ranking.add({ name, score, date: Date.now(), cleared });
+        // ダイアログを閉じた操作がそのままリトライ等に繋がらないよう、待ち時間を取り直す
+        this.phaseTime = 0;
+      },
+      onCancel: () => {
+        this.phaseTime = 0;
+      },
+    });
+  }
+
+  private share(): void {
+    const { score, phase } = this.world;
+    const result = phase === 'clear' ? 'GAME CLEAR！' : '';
+    openXShare(`BREAKOUT で ${score} 点を記録！${result}`, gameUrl(), SHARE_CONFIG.hashtags);
   }
 
   private readControls(input: Input): Controls {
