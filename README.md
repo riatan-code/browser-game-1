@@ -1,6 +1,6 @@
 # browser-game-1
 
-Vite + TypeScript + HTML5 Canvas によるブラウザゲームのプロジェクト雛形です。
+Vite + TypeScript + HTML5 Canvas で作ったブロック崩しゲームです。
 PC (キーボード/マウス) とスマートフォン (タッチ) の両方に対応し、GitHub Pages で公開できます。
 
 ## コマンド
@@ -13,18 +13,31 @@ PC (キーボード/マウス) とスマートフォン (タッチ) の両方に
 | `npm run preview` | ビルド結果のプレビュー |
 | `npm run typecheck` | 型チェックのみ |
 
+## 操作
+
+- PC: マウスを左右に動かしてパドル操作、クリックで発射 (← → / Space でも可)
+- スマホ: 指を左右にスライドしてパドル操作、タップで発射
+
 ## ディレクトリ構成
 
 ```
 src/
   main.ts            エントリポイント
-  config.ts          論理解像度・固定ステップなどの定数
+  config.ts          論理解像度 (540x900 縦長)・固定ステップなどの共通定数
   style.css          全画面表示・スマホのスクロール/ズーム抑止
-  core/              ゲームループ・シーン管理・座標変換 (Viewport)
-  game/              ゲームロジック (DOM/Canvas 非依存の純粋な TS)
-  render/            Canvas 描画 (高DPI対応・リサイズ・レターボックス)
+  core/              ゲームループ・シーン管理・座標変換 (Viewport)・イベントバス
+  game/              ゲームロジック (DOM/Canvas 非依存)
+    config.ts          ゲームの数値パラメータ (ライフ・速度・サイズ・得点など)
+    BreakoutWorld.ts   ゲーム状態と進行 (発射・ミス・クリア判定)
+    physics.ts         ボールの移動・反射
+    collision.ts       当たり判定
+    entities.ts        パドル / ボール / ブロックの生成
+    stages.ts          ステージのブロック配置データ
+    events.ts          ゲームイベント定義 (サウンド・エフェクトの接続口)
+  render/            Canvas 描画 (高DPI対応・リサイズ・レターボックス)・配色テーマ
+  ui/                HUD (SCORE / LIFE)・ボタン・開始 / 結果画面
   input/             キーボード / マウス / タッチ入力 (Pointer Events で統一)
-  scenes/            シーン (ロジックと描画を結び付ける層)
+  scenes/            入力 → ロジック → 描画をつなぐシーン
 public/              そのまま配信される静的ファイル
 ```
 

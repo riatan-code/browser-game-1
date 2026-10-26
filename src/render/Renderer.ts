@@ -76,6 +76,13 @@ export class Renderer {
     this.ctx.fillRect(x, y, w, h);
   }
 
+  fillRoundRect(x: number, y: number, w: number, h: number, radius: number, color: string): void {
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    this.ctx.roundRect(x, y, w, h, radius);
+    this.ctx.fill();
+  }
+
   fillCircle(x: number, y: number, r: number, color: string): void {
     this.ctx.fillStyle = color;
     this.ctx.beginPath();
@@ -83,15 +90,35 @@ export class Renderer {
     this.ctx.fill();
   }
 
+  strokeCircle(x: number, y: number, r: number, color: string, lineWidth = 2): void {
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = lineWidth;
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, r, 0, Math.PI * 2);
+    this.ctx.stroke();
+  }
+
   text(
     str: string,
     x: number,
     y: number,
-    options: { color?: string; size?: number; align?: CanvasTextAlign; font?: string } = {},
+    options: {
+      color?: string;
+      size?: number;
+      weight?: number;
+      align?: CanvasTextAlign;
+      font?: string;
+    } = {},
   ): void {
-    const { color = '#fff', size = 16, align = 'left', font = 'sans-serif' } = options;
+    const {
+      color = '#fff',
+      size = 16,
+      weight = 400,
+      align = 'left',
+      font = 'system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif',
+    } = options;
     this.ctx.fillStyle = color;
-    this.ctx.font = `${size}px ${font}`;
+    this.ctx.font = `${weight} ${size}px ${font}`;
     this.ctx.textAlign = align;
     this.ctx.textBaseline = 'middle';
     this.ctx.fillText(str, x, y);

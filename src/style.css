@@ -11,7 +11,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #000;
+  background: #07080f;
   /* スマホでのスクロール・ズーム・長押しメニュー・選択ハイライトを抑止 */
   overscroll-behavior: none;
   touch-action: none;

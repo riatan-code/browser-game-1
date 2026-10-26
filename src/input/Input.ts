@@ -27,6 +27,7 @@ export class Input {
   private readonly activePointers = new Map<number, PointerState>();
   private pointerPressedFlag = false;
   private pointerReleasedFlag = false;
+  private pointerMovedFlag = false;
 
   /** 最後に操作されたポインタの位置 (ホバー位置を含む) */
   readonly pointer = { x: 0, y: 0 };
@@ -79,12 +80,18 @@ export class Input {
     return this.pointerReleasedFlag;
   }
 
+  /** 前ステップ以降にポインタが動いたか (マウスのホバー移動を含む) */
+  get isPointerMoved(): boolean {
+    return this.pointerMovedFlag;
+  }
+
   /** 固定ステップの update 後に呼び、「瞬間」系の状態をリセットする。 */
   endFrame(): void {
     this.keysPressed.clear();
     this.keysReleased.clear();
     this.pointerPressedFlag = false;
     this.pointerReleasedFlag = false;
+    this.pointerMovedFlag = false;
   }
 
   reset(): void {
@@ -110,6 +117,7 @@ export class Input {
     const { x, y } = this.viewport.toWorld(e.clientX - rect.left, e.clientY - rect.top);
     this.pointer.x = x;
     this.pointer.y = y;
+    this.pointerMovedFlag = true;
     return { id: e.pointerId, x, y, type: e.pointerType };
   }
 
