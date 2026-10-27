@@ -73,7 +73,7 @@ export const BREAKOUT_CONFIG = {
      * 出現したアイテムの種類の重み (合計に対する比率で抽選)。
      * 強力なものほど小さくする: WIDE > MULTI > SAFETY
      */
-    weights: { wide: 6, multi: 3, safety: 1 },
+    weights: { wide: 6, multi: 5, safety: 1 },
     /** 画面内に同時に落ちてくる最大数 */
     maxFalling: 3,
     fallSpeed: 170,
@@ -81,8 +81,8 @@ export const BREAKOUT_CONFIG = {
     height: 22,
 
     multi: {
-      /** ボール数の上限 (2倍にしても超えない) */
-      maxBalls: 8,
+      /** ボール数の上限 (1 → 3 → 9 → 27)。描画・判定の負荷を抑えるための安全上限 */
+      maxBalls: 27,
       /** 分裂したボールを元の進行方向からずらす角度 */
       splitAngle: 18,
     },
@@ -91,9 +91,7 @@ export const BREAKOUT_CONFIG = {
       duration: 12,
     },
     safety: {
-      /** 跳ね返せる回数 */
-      charges: 3,
-      /** 回数が残っていても消えるまでの時間 */
+      /** 消えるまでの時間 (この間は何度でも跳ね返す) */
       duration: 20,
       /** パドル上端からバーまでの距離 */
       offsetBelowPaddle: 62,
@@ -129,9 +127,9 @@ export const BREAKOUT_CONFIG = {
     /** ボス戦のアイテム: ボールを当てたときに落とす */
     items: {
       dropChance: 0.3,
-      weights: { wide: 5, multi: 2, safety: 1 },
-      /** ボス戦は手数が増えすぎないよう上限を下げる */
-      maxBalls: 4,
+      weights: { wide: 5, multi: 4, safety: 1 },
+      /** ボス戦は手数が増えすぎないよう上限を下げる (1 → 3 → 9) */
+      maxBalls: 9,
     },
 
     /**
@@ -165,6 +163,33 @@ export const BREAKOUT_CONFIG = {
       },
       bulletRadius: 9,
     },
+
+    /**
+     * 裏ボス (EX STAGE)。通常ボスをクリアすると選べる。
+     * HP・当たり判定は通常ボスと同じで、攻撃の頻度と種類だけが違う。
+     * どの攻撃も予告があり、避ける位置・タイミングが必ず存在するように調整している
+     */
+    ex: {
+      phases: [
+        { hpRatio: 1, moveSpeed: 1.0, interval: 1.6, pattern: ['burst', 'fan', 'spiral'] },
+        { hpRatio: 0.66, moveSpeed: 1.2, interval: 1.4, pattern: ['spiral', 'laserWall', 'burst', 'fan'] },
+        { hpRatio: 0.33, moveSpeed: 1.4, interval: 1.2, pattern: ['laserWall', 'spiral', 'burst', 'fan', 'spiral'] },
+      ],
+      attacks: {
+        /** パドルを狙い直しながら連射する。止まっていると当たる */
+        burst: { telegraph: 0.5, count: 4, interval: 0.17, speed: 320 },
+        /** 7方向の扇状弾。弾の間隔は WIDE PADDLE (156px) でもぎりぎり入れる程度 */
+        fan: { telegraph: 0.65, bullets: 7, spreadAngle: 18, speed: 240 },
+        /**
+         * 螺旋弾: 回転しながら複数の腕で撃ち続ける。下向きの弾だけを撃つ。
+         * 回転に合わせて移動するか、腕の間をすり抜けて避ける
+         */
+        spiral: { telegraph: 0.7, duration: 1.8, interval: 0.12, arms: 2, turnSpeed: 130, speed: 210 },
+        /** 画面全体を覆うレーザー。パドルから遠い側に1か所だけ安全地帯 (パドル幅 + gapMargin) を残す */
+        laserWall: { telegraph: 1.15, duration: 0.5, gapMargin: 48 },
+        bulletRadius: 9,
+      },
+    },
   },
 } as const;
 
@@ -172,4 +197,4 @@ export type BreakoutConfig = typeof BREAKOUT_CONFIG;
 export type BossConfig = BreakoutConfig['boss'];
 export type BrickType = keyof BreakoutConfig['bricks']['types'];
 export type ItemKind = keyof BreakoutConfig['items']['weights'];
-export type BossAttackKind = BossConfig['phases'][number]['pattern'][number];
+export type BossAttackKind = 'aimed' | 'spread' | 'laser' | 'fan' | 'burst' | 'spiral' | 'laserWall';

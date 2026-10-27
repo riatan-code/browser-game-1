@@ -30,7 +30,14 @@ export function drawWorld(r: Renderer, world: BreakoutWorld, alpha: number, fx: 
   fx.draw(r);
 
   if (world.battle) {
-    drawBossBattle(r, world.battle, world.height, alpha, world.phase === 'stageclear' ? world.stageClearProgress : 0);
+    drawBossBattle(
+      r,
+      world.battle,
+      world.height,
+      world.paddle.y,
+      alpha,
+      world.phase === 'stageclear' ? world.stageClearProgress : 0,
+    );
   }
 
   for (const item of world.items) drawItem(r, item, alpha, time);
@@ -192,28 +199,18 @@ function drawItemSymbol(ctx: CanvasRenderingContext2D, kind: ItemKind): void {
   }
 }
 
-/** セーフティバー: 画面幅の細い発光ライン。残り回数を小さな目盛りで示す */
+/** セーフティバー: 画面幅の細い発光ライン */
 function drawSafetyBar(r: Renderer, bar: SafetyBar, width: number): void {
   // 残り時間が少なくなったら点滅して知らせる
   if (bar.timeLeft < 3 && Math.floor(bar.timeLeft * 6) % 2 === 0) return;
   const { ctx } = r;
-  const ratio = bar.charges / bar.maxCharges;
   const y = bar.y + bar.height / 2;
-  ctx.globalAlpha = 0.5 + 0.5 * ratio;
   r.setGlow(THEME.safetyBar, 10);
   r.strokeLine(6, y, width - 6, y, THEME.safetyBar, 2);
   r.setGlow();
   ctx.globalAlpha = 0.25;
   r.strokeLine(6, y + 4, width - 6, y + 4, THEME.safetyBar, 1);
-
   ctx.globalAlpha = 1;
-  const pip = 14;
-  const gap = 6;
-  const total = bar.maxCharges * pip + (bar.maxCharges - 1) * gap;
-  for (let i = 0; i < bar.maxCharges; i++) {
-    const px = (width - total) / 2 + i * (pip + gap);
-    r.fillRect(px, y - 8, pip, 2, i < bar.charges ? THEME.safetyBar : THEME.faint);
-  }
 }
 
 /**

@@ -26,6 +26,8 @@ export const RANKING_CONFIG = {
 export const PROGRESS_CONFIG = {
   /** 保存形式を変えたら末尾のバージョンを上げる */
   storageKey: 'browser-game-1:breakout:progress:v1',
+  /** ボスの EX モードをクリアしたステージ */
+  exStorageKey: 'browser-game-1:breakout:progress-ex:v1',
 } as const;
 
 /** X への投稿 */

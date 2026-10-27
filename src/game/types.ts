@@ -58,8 +58,6 @@ export interface SafetyBar {
   /** 上端の y */
   y: number;
   height: number;
-  charges: number;
-  maxCharges: number;
   timeLeft: number;
 }
 
@@ -82,8 +80,8 @@ export interface Telegraph {
   kind: BossAttackKind;
   time: number;
   duration: number;
-  /** laser の照準位置 */
-  targetX: number;
+  /** レーザー系の照射範囲 (中心 x と幅)。弾の攻撃では空 */
+  zones: { x: number; width: number }[];
 }
 
 export interface Bullet {
@@ -101,6 +99,8 @@ export interface Laser {
   x: number;
   width: number;
   timeLeft: number;
+  /** 照射時間 (描画で開き・閉じの演出に使う) */
+  duration: number;
 }
 
 /**

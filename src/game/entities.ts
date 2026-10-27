@@ -65,12 +65,10 @@ export function createItem(cfg: BreakoutConfig, kind: ItemKind, x: number, y: nu
 }
 
 export function createSafetyBar(cfg: BreakoutConfig, paddle: Paddle): SafetyBar {
-  const { charges, duration, offsetBelowPaddle, height } = cfg.items.safety;
+  const { duration, offsetBelowPaddle, height } = cfg.items.safety;
   return {
     y: paddle.y + offsetBelowPaddle,
     height,
-    charges,
-    maxCharges: charges,
     timeLeft: duration,
   };
 }

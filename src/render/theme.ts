@@ -78,13 +78,6 @@ export function brickColor(row: number): string {
   return colors[row % colors.length] ?? THEME.cyan;
 }
 
-/** 取得時に表示する正式名 */
-export const ITEM_NAMES: Record<ItemKind, string> = {
-  wide: 'WIDE PADDLE',
-  multi: 'MULTI BALL',
-  safety: 'SAFETY BAR',
-};
-
 /** 数字を桁数をそろえて表示する (例: 2450 → "002450") */
 export function padNumber(value: number, digits: number): string {
   return String(Math.max(0, Math.floor(value))).padStart(digits, '0');

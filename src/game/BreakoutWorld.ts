@@ -1,5 +1,5 @@
 import { EventBus } from '../core/EventBus.ts';
-import { BossBattle } from './BossBattle.ts';
+import { BossBattle, type BossProfile } from './BossBattle.ts';
 import { circleRect, type Hit } from './collision.ts';
 import { BREAKOUT_CONFIG, type BreakoutConfig, type ItemKind } from './config.ts';
 import {
@@ -22,7 +22,7 @@ import {
   setSpeed,
   type Bounds,
 } from './physics.ts';
-import { STAGES, type StageDef } from './stages.ts';
+import { STAGES, type BossProfileId, type StageDef } from './stages.ts';
 import type { Ball, Brick, Controls, Item, Paddle, Phase, SafetyBar } from './types.ts';
 
 /** ルールの上書き (開発時のテスト用)。指定しなければ通常のルール */
@@ -63,6 +63,7 @@ export class BreakoutWorld {
   invincibleTime = 0;
 
   private stageClearTimer = 0;
+  private exMode = false;
   private readonly bounds: Bounds;
   private readonly brickDropTable: DropTable;
   private readonly bossDropTable: DropTable;
@@ -91,6 +92,17 @@ export class BreakoutWorld {
     return stage;
   }
 
+  /** ボスの EX モードを遊んでいるか */
+  get isExStage(): boolean {
+    return this.exMode;
+  }
+
+  /** 画面に出すステージ名とヒント (EX モードなら EX の定義) */
+  get stageInfo(): { title: string; hint: string } {
+    const { stage } = this;
+    return this.exMode && stage.kind === 'boss' && stage.ex ? stage.ex : stage;
+  }
+
   get stageCount(): number {
     return STAGES.length;
   }
@@ -103,18 +115,23 @@ export class BreakoutWorld {
   /**
    * ゲームを開始する。
    * @param stageIndex 開始ステージ (0 始まり)。範囲外は最も近いステージに丸める
+   * @param ex そのボスステージの EX モードで遊ぶ (EX が定義されていなければ通常どおり)。
+   *           EX モードはそのボスを倒した時点でゲームクリアになる
    */
-  newGame(stageIndex = 0): void {
+  newGame(stageIndex = 0, ex = false): void {
     this.score = 0;
     this.lives = this.cfg.lives;
     this.invincibleTime = 0;
     this.paddle.x = this.paddle.prevX = this.width / 2;
     this.startStageIndex = Math.max(0, Math.min(STAGES.length - 1, Math.floor(stageIndex)));
+    const stage = STAGES[this.startStageIndex];
+    this.exMode = ex && stage?.kind === 'boss' && stage.ex !== undefined;
     this.loadStage(this.startStageIndex);
   }
 
   /** 開始画面に戻る。背景として STAGE 1 の盤面を表示しておく */
   returnToTitle(): void {
+    this.exMode = false;
     this.loadStage(0);
     this.setPhase('title');
   }
@@ -172,7 +189,8 @@ export class BreakoutWorld {
       this.battle = null;
     } else {
       this.bricks = [];
-      this.battle = new BossBattle(this.cfg, this.width, this.height);
+      const profileId = this.exMode && stage.ex ? stage.ex.profile : stage.profile;
+      this.battle = new BossBattle(this.cfg, this.width, this.height, this.bossProfile(profileId));
       // 残りライフがボス戦の HP に上乗せされる
       const base = this.cfg.boss.playerBaseHp;
       this.playerMaxHp = base + this.cfg.lives;
@@ -249,7 +267,7 @@ export class BreakoutWorld {
     const bar = this.safetyBar;
     if (bar) {
       bar.timeLeft -= dt;
-      if (bar.timeLeft <= 0 || bar.charges <= 0) this.safetyBar = null;
+      if (bar.timeLeft <= 0) this.safetyBar = null;
     }
 
     this.invincibleTime = Math.max(0, this.invincibleTime - dt);
@@ -280,8 +298,7 @@ export class BreakoutWorld {
       }
 
       const bar = this.safetyBar;
-      if (bar && bar.charges > 0 && bounceOffBar(ball, bar)) {
-        bar.charges -= 1;
+      if (bar && bounceOffBar(ball, bar)) {
         enforceMinVertical(ball, minVerticalRatio);
         this.events.emit('safetyBounce', { ball });
       }
@@ -470,6 +487,10 @@ export class BreakoutWorld {
     this.setPhase('stageclear');
   }
 
+  private bossProfile(id: BossProfileId): BossProfile {
+    return id === 'bossEx' ? this.cfg.boss.ex : this.cfg.boss;
+  }
+
   private updateStageClear(dt: number): void {
     // ボスの撃破演出 (点滅) のために、ボスの時間だけは進める
     this.battle?.update(dt, this.paddle, false);
@@ -477,7 +498,8 @@ export class BreakoutWorld {
     if (this.stageClearTimer > 0) return;
 
     const next = this.stageIndex + 1;
-    if (next < STAGES.length) {
+    // EX モードはそのボスで完結する
+    if (!this.exMode && next < STAGES.length) {
       this.loadStage(next);
     } else {
       this.setPhase('clear');

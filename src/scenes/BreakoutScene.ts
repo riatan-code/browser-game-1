@@ -13,7 +13,7 @@ import { drawWorld } from '../render/BreakoutView.ts';
 import { Effects } from '../render/Effects.ts';
 import { FloatingTexts } from '../render/FloatingTexts.ts';
 import type { Renderer } from '../render/Renderer.ts';
-import { ITEM_NAMES, THEME } from '../render/theme.ts';
+import { THEME } from '../render/theme.ts';
 import { gameUrl, openXShare } from '../share/shareToX.ts';
 import { Button } from '../ui/Button.ts';
 import { drawBossHp, drawDebugBadge, drawEffectStatus, drawHud, type EffectStatus, type HudVitals } from '../ui/Hud.ts';
@@ -21,7 +21,6 @@ import { NameEntryDialog } from '../ui/NameEntryDialog.ts';
 import { StageSelect, type StageCard } from '../ui/StageSelect.ts';
 import {
   drawResultScreen,
-  drawServeHint,
   drawStageBanner,
   drawStageClearBanner,
   drawTitleScreen,
@@ -42,7 +41,11 @@ export class BreakoutScene implements Scene {
     RANKING_CONFIG.nameKey,
     RANKING_CONFIG.size,
   );
-  private readonly progress = new ProgressStore(PROGRESS_CONFIG.storageKey, STAGES.length);
+  private readonly progress = new ProgressStore(
+    PROGRESS_CONFIG.storageKey,
+    PROGRESS_CONFIG.exStorageKey,
+    STAGES.length,
+  );
   private readonly nameDialog: NameEntryDialog;
   private readonly stageSelect: StageSelect;
   private readonly retryButton: Button;
@@ -119,7 +122,7 @@ export class BreakoutScene implements Scene {
         const pressed = input.isPointerPressed;
         if ((pressed && this.retryButton.contains(x, y)) || confirmKey) {
           // 同じステージからやり直す
-          world.newGame(world.startStageIndex);
+          world.newGame(world.startStageIndex, world.isExStage);
         } else if ((pressed && this.stageSelectButton.contains(x, y)) || input.isPressed('Escape')) {
           world.returnToTitle();
           this.selectDefaultStage();
@@ -145,7 +148,7 @@ export class BreakoutScene implements Scene {
     drawHud(r, field.top, {
       score: world.score,
       best: this.ranking.best,
-      stageNumber: world.stageIndex + 1,
+      stageLabel: String(world.stageIndex + 1).padStart(2, '0') + (world.isExStage ? ' EX' : ''),
       bossStage: world.battle !== null,
       vitals: this.vitals(),
     });
@@ -164,13 +167,12 @@ export class BreakoutScene implements Scene {
             {
               stageNumber: world.stageIndex + 1,
               stageCount: world.stageCount,
-              title: world.stage.title,
-              hint: world.stage.hint,
+              ex: world.isExStage,
+              title: world.stageInfo.title,
             },
             this.bannerTime,
           );
         }
-        drawServeHint(r, world.paddle.y + 70);
         break;
       case 'stageclear': {
         const label = world.battle
@@ -184,7 +186,9 @@ export class BreakoutScene implements Scene {
       case 'clear':
         drawResultScreen(r, {
           kind: world.phase,
-          stageLabel: `STAGE ${world.stageIndex + 1} / ${world.stageCount}`,
+          stageLabel: world.isExStage
+            ? `STAGE ${world.stageIndex + 1} EX`
+            : `STAGE ${world.stageIndex + 1} / ${world.stageCount}`,
           score: world.score,
           rank: this.lastRank,
           note: this.rankingNote,
@@ -218,10 +222,11 @@ export class BreakoutScene implements Scene {
     });
     events.on('stageClear', ({ stageIndex, bonus }) => {
       this.lastClearBonus = bonus;
-      this.progress.markCleared(stageIndex);
-    });
-    events.on('itemCollected', ({ kind, x, y }) => {
-      this.floatingTexts.add(ITEM_NAMES[kind], x, y - 24, THEME.items[kind]);
+      if (this.world.isExStage) {
+        this.progress.markExCleared(stageIndex);
+      } else {
+        this.progress.markCleared(stageIndex);
+      }
     });
     events.on('playerDamaged', ({ hp }) => {
       const { paddle } = this.world;
@@ -239,17 +244,28 @@ export class BreakoutScene implements Scene {
     if (input.isPointerPressed) {
       start = this.stageSelect.hitTest(cards.length, input.pointer.x, input.pointer.y);
     }
-    if (start === null || !cards[start]?.unlocked) return;
+    const card = start === null ? undefined : cards[start];
+    if (start === null || !card?.unlocked) return;
     this.stageSelect.selected = start;
-    this.world.newGame(start);
+    this.world.newGame(start, card.ex);
   }
 
+  /**
+   * ステージ選択のカード。
+   * EX モードを持つボスは、倒すとカードが EX 表示に切り替わり、そこから EX モードを始める。
+   * その場合の CLEAR は EX モードをクリアしたときに付く
+   */
   private stageCards(): StageCard[] {
-    return STAGES.map((stage, i) => ({
-      title: stage.title,
-      unlocked: this.progress.isUnlocked(i) || this.isDevUnlocked(i),
-      cleared: this.progress.isCleared(i),
-    }));
+    return STAGES.map((stage, i) => {
+      const exDef = stage.kind === 'boss' ? stage.ex : undefined;
+      const ex = exDef !== undefined && this.progress.isCleared(i);
+      return {
+        title: ex && exDef ? exDef.title : stage.title,
+        unlocked: this.progress.isUnlocked(i) || this.isDevUnlocked(i),
+        cleared: exDef ? this.progress.isExCleared(i) : this.progress.isCleared(i),
+        ex,
+      };
+    });
   }
 
   /** 開発用オプション ?stage=N で、STAGE N までを選択可能にする */
@@ -312,7 +328,7 @@ export class BreakoutScene implements Scene {
     const bar = world.safetyBar;
     if (bar) {
       list.push({
-        label: `SAFETY ×${bar.charges}`,
+        label: 'SAFETY',
         color: THEME.items.safety,
         ratio: bar.timeLeft / items.safety.duration,
       });
@@ -366,7 +382,13 @@ export class BreakoutScene implements Scene {
   private share(): void {
     const { score, phase } = this.world;
     const result =
-      phase === 'clear' ? 'ボスを倒して GAME CLEAR！' : `(STAGE ${this.world.stageIndex + 1} まで到達)`;
+      this.world.isExStage
+        ? phase === 'clear'
+          ? `STAGE ${this.world.stageIndex + 1} の EX ボスを倒した！`
+          : `(STAGE ${this.world.stageIndex + 1} EX に挑戦)`
+        : phase === 'clear'
+          ? 'ボスを倒して GAME CLEAR！'
+          : `(STAGE ${this.world.stageIndex + 1} まで到達)`;
     openXShare(`BREAKOUT で ${score} 点を記録！
 ${result}
 `, gameUrl(), SHARE_CONFIG.hashtags);

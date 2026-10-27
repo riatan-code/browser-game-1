@@ -12,7 +12,8 @@ export type HudVitals =
 export interface HudState {
   score: number;
   best: number;
-  stageNumber: number;
+  /** ステージ欄の表示 ("01" や "EX") */
+  stageLabel: string;
   /** ボス戦中は強調色をオレンジにする */
   bossStage: boolean;
   vitals: HudVitals;
@@ -52,7 +53,7 @@ export function drawHud(r: Renderer, height: number, state: HudState): void {
 
   const cx = r.width / 2;
   r.text('STAGE', cx, labelY, { ...LABEL, align: 'center' });
-  r.text(padNumber(state.stageNumber, 2), cx, valueY, {
+  r.text(state.stageLabel, cx, valueY, {
     size: 24,
     weight: 300,
     font: THEME.mono,

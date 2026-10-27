@@ -17,9 +17,23 @@ export interface BrickStageDef extends StageBase {
   layout: readonly string[];
 }
 
-/** ボス戦。ボスの性能は config の boss にまとめている */
+/**
+ * ボスの行動パターンの名前。中身は config にまとめている
+ * - 'boss'  : config.boss
+ * - 'bossEx': config.boss.ex
+ */
+export type BossProfileId = 'boss' | 'bossEx';
+
+/** ボスの EX モード (同じボスの強化版)。ボスを倒すと、ステージ選択のそのボスの枠から選べるようになる */
+export interface BossExDef extends StageBase {
+  profile: BossProfileId;
+}
+
+/** ボス戦。ボスを追加するときは、ボスごとに EX モード (ex) も定義できる */
 export interface BossStageDef extends StageBase {
   kind: 'boss';
+  profile: BossProfileId;
+  ex?: BossExDef;
 }
 
 export type StageDef = BrickStageDef | BossStageDef;
@@ -34,7 +48,9 @@ export const STAGES: readonly StageDef[] = [
     kind: 'bricks',
     title: 'BASIC',
     hint: 'ブロックをすべて壊そう',
-    // 下段を間引いて、ボールの通り道と見通しを確保する
+    // 壊れないブロック (X) の棚に、ボールが通れるだけのわずかな隙間を4か所残す。
+    // 隙間を抜けたボールは棚とブロックの間 (1段空けた空間) で跳ね回り、続けてブロックを壊せる。
+    // 左右の端も空けて、閉じ込められずに戻ってこられるようにしている
     layout: [
       '############',
       '############',
@@ -42,6 +58,8 @@ export const STAGES: readonly StageDef[] = [
       '############',
       '.##########.',
       '..########..',
+      '............',
+      '.XXX.XX.XXX.',
       '............',
       '##..####..##',
     ],
@@ -66,7 +84,13 @@ export const STAGES: readonly StageDef[] = [
   },
   {
     kind: 'boss',
+    profile: 'boss',
     title: 'BOSS',
     hint: 'ボールを当てて倒せ。攻撃は予告を見て避けよう',
+    ex: {
+      title: 'TRUE BOSS',
+      hint: '攻撃はすべて予告がある。見切って避けろ',
+      profile: 'bossEx',
+    },
   },
 ];

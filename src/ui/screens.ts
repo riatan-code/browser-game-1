@@ -20,7 +20,7 @@ function sideLines(r: Renderer, y: number, innerHalf: number, length: number, co
   r.ctx.globalAlpha = 1;
 }
 
-/** ゲーム開始画面。ルールと操作方法を示し、ステージを選んで開始する。 */
+/** ゲーム開始画面。タイトルとステージ選択だけを置く。 */
 export function drawTitleScreen(
   r: Renderer,
   stageSelect: StageSelect,
@@ -30,7 +30,7 @@ export function drawTitleScreen(
   dim(r);
   const cx = r.width / 2;
 
-  r.text('BREAKOUT', cx, 200, {
+  r.text('BREAKOUT', cx, 340, {
     size: 50,
     weight: 200,
     spacing: 12,
@@ -39,41 +39,10 @@ export function drawTitleScreen(
     glow: 16,
     glowColor: THEME.cyan,
   });
-  sideLines(r, 246, 6, 150, THEME.cyan);
-
-  const rules = [
-    'パドルでボールを打ち返そう',
-    '全3ステージ: ブロック → 鉄の防壁 → ボス',
-    '落ちてくるアイテムをキャッチ',
-    'ボールを下に落とすと LIFE -1',
-  ];
-  rules.forEach((line, i) => {
-    r.text(line, cx, 302 + i * 32, {
-      size: 16,
-      weight: 400,
-      align: 'center',
-      color: THEME.text,
-      maxWidth: r.width - 40,
-    });
-  });
-
-  r.text('マウス / 指を左右に動かして操作', cx, 448, { size: 13, align: 'center', color: THEME.subText });
+  sideLines(r, 386, 6, 150, THEME.cyan);
 
   r.text('STAGE SELECT', cx, 500, { size: 11, weight: 500, spacing: 4, align: 'center', color: THEME.subText });
   stageSelect.draw(r, cards, hoverCard);
-  r.text('ステージをタップしてスタート', cx, 670, { size: 15, weight: 500, align: 'center', color: THEME.ice });
-  r.text('クリアすると次のステージが選べるようになります', cx, 702, {
-    size: 12,
-    align: 'center',
-    color: THEME.subText,
-    maxWidth: r.width - 40,
-  });
-  r.text('STAGE 1 から始めたときだけランキングに記録されます', cx, 724, {
-    size: 12,
-    align: 'center',
-    color: THEME.subText,
-    maxWidth: r.width - 40,
-  });
 }
 
 export interface ResultView {
@@ -184,22 +153,12 @@ function drawRanking(
   });
 }
 
-/** 発射待ちのガイド。パドルの下 (指を置く領域) に表示する。 */
-export function drawServeHint(r: Renderer, y: number): void {
-  r.text('クリック / タップで発射', r.width / 2, y, {
-    size: 14,
-    weight: 500,
-    spacing: 2,
-    align: 'center',
-    color: THEME.subText,
-  });
-}
-
 export interface StageBannerView {
   stageNumber: number;
   stageCount: number;
+  /** ボスの EX モード */
+  ex: boolean;
   title: string;
-  hint: string;
 }
 
 /** ステージ開始の表示時間 (秒)。発射するとそれより前に消える */
@@ -212,7 +171,7 @@ export const STAGE_BANNER_DURATION = 2.6;
  */
 export function drawStageBanner(r: Renderer, y: number, view: StageBannerView, t: number): void {
   const cx = r.width / 2;
-  const final = view.stageNumber === view.stageCount;
+  const final = view.ex || view.stageNumber === view.stageCount;
   const color = final ? THEME.orange : THEME.cyan;
   const fadeOut = clamp01((STAGE_BANNER_DURATION - t) / 0.3);
   const line = easeOut(t / 0.35);
@@ -220,18 +179,22 @@ export function drawStageBanner(r: Renderer, y: number, view: StageBannerView, t
   const { ctx } = r;
 
   ctx.globalAlpha = 0.6 * fadeOut;
-  r.fillRect(0, y - 56, r.width, 112, THEME.background);
+  r.fillRect(0, y - 48, r.width, 96, THEME.background);
 
   ctx.globalAlpha = fadeOut;
   const half = (r.width / 2 - 24) * line;
   r.setGlow(color, 8);
-  r.strokeLine(cx - half, y - 46, cx + half, y - 46, color, 1);
-  r.strokeLine(cx - half, y + 46, cx + half, y + 46, color, 1);
+  r.strokeLine(cx - half, y - 38, cx + half, y - 38, color, 1);
+  r.strokeLine(cx - half, y + 38, cx + half, y + 38, color, 1);
   r.setGlow();
 
   ctx.globalAlpha = textIn * fadeOut;
-  const label = final ? 'FINAL STAGE' : `STAGE ${padNumber(view.stageNumber, 2)}`;
-  r.text(label, cx, y - 16, {
+  const label = view.ex
+    ? `STAGE ${padNumber(view.stageNumber, 2)} EX`
+    : final
+      ? 'FINAL STAGE'
+      : `STAGE ${padNumber(view.stageNumber, 2)}`;
+  r.text(label, cx, y - 10, {
     size: 32,
     weight: 200,
     spacing: 8,
@@ -240,19 +203,12 @@ export function drawStageBanner(r: Renderer, y: number, view: StageBannerView, t
     glow: 14,
     glowColor: color,
   });
-  r.text(view.title, cx, y + 12, { size: 11, weight: 500, spacing: 5, align: 'center', color });
-  r.text(view.hint, cx, y + 32, {
-    size: 13,
-    weight: 400,
-    align: 'center',
-    color: THEME.text,
-    maxWidth: r.width - 40,
-  });
+  r.text(view.title, cx, y + 20, { size: 11, weight: 500, spacing: 5, align: 'center', color });
 
   if (final && t < 1.2 && Math.floor(t * 5) % 2 === 0) {
     ctx.globalAlpha = fadeOut;
-    r.text('WARNING', cx, y - 70, { size: 12, weight: 600, spacing: 6, align: 'center', color: THEME.orange, glow: 8 });
-    sideLines(r, y - 70, 64, 40, THEME.orange, 0.8);
+    r.text('WARNING', cx, y - 58, { size: 12, weight: 600, spacing: 6, align: 'center', color: THEME.orange, glow: 8 });
+    sideLines(r, y - 58, 64, 40, THEME.orange, 0.8);
   }
   ctx.globalAlpha = 1;
 }
