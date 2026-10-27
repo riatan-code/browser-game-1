@@ -90,6 +90,13 @@ export class Renderer {
     this.ctx.fill();
   }
 
+  fillEllipse(x: number, y: number, rx: number, ry: number, rotation: number, color: string): void {
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    this.ctx.ellipse(x, y, rx, ry, rotation, 0, Math.PI * 2);
+    this.ctx.fill();
+  }
+
   strokeCircle(x: number, y: number, r: number, color: string, lineWidth = 2): void {
     this.ctx.strokeStyle = color;
     this.ctx.lineWidth = lineWidth;
@@ -110,6 +117,11 @@ export class Renderer {
       font?: string;
       /** 超える場合は横方向に縮めて収める */
       maxWidth?: number;
+      /** 字間 (px)。未対応のブラウザでは無視される */
+      spacing?: number;
+      /** 文字の発光の強さ (shadowBlur)。0 で発光なし */
+      glow?: number;
+      glowColor?: string;
     } = {},
   ): void {
     const {
@@ -119,15 +131,67 @@ export class Renderer {
       align = 'left',
       font = 'system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif',
       maxWidth,
+      spacing = 0,
+      glow = 0,
+      glowColor = color,
     } = options;
-    this.ctx.fillStyle = color;
-    this.ctx.font = `${weight} ${size}px ${font}`;
-    this.ctx.textAlign = align;
-    this.ctx.textBaseline = 'middle';
+    const { ctx } = this;
+    ctx.fillStyle = color;
+    ctx.font = `${weight} ${size}px ${font}`;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+    if (spacing) ctx.letterSpacing = `${spacing}px`;
+    if (glow) this.setGlow(glowColor, glow);
+    // 字間を空けると末尾にも余白が付くため、中央揃えのときは半分ずらして中心を合わせる
+    const dx = align === 'center' ? spacing / 2 : align === 'right' ? spacing : 0;
     if (maxWidth === undefined) {
-      this.ctx.fillText(str, x, y);
+      ctx.fillText(str, x + dx, y);
     } else {
-      this.ctx.fillText(str, x, y, maxWidth);
+      ctx.fillText(str, x + dx, y, maxWidth);
     }
+    if (glow) this.setGlow();
+    if (spacing) ctx.letterSpacing = '0px';
+  }
+
+  /** 以降の描画を発光させる。引数なしで解除 */
+  setGlow(color = 'transparent', blur = 0): void {
+    this.ctx.shadowColor = color;
+    this.ctx.shadowBlur = blur;
+  }
+
+  strokeLine(x1: number, y1: number, x2: number, y2: number, color: string, lineWidth = 1): void {
+    const { ctx } = this;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  /** 点列で多角形のパスを作る (塗り・線は呼び出し側で行う) */
+  polygon(points: readonly (readonly [number, number])[]): void {
+    const { ctx } = this;
+    ctx.beginPath();
+    points.forEach(([px, py], i) => {
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+  }
+
+  /** 角を斜めに落とした矩形のパス */
+  chamferRect(x: number, y: number, w: number, h: number, cut: number): void {
+    const c = Math.min(cut, w / 2, h / 2);
+    this.polygon([
+      [x + c, y],
+      [x + w - c, y],
+      [x + w, y + c],
+      [x + w, y + h - c],
+      [x + w - c, y + h],
+      [x + c, y + h],
+      [x, y + h - c],
+      [x, y + c],
+    ]);
   }
 }

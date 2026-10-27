@@ -11,7 +11,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #07080f;
+  background: #010204;
   /* スマホでのスクロール・ズーム・長押しメニュー・選択ハイライトを抑止 */
   overscroll-behavior: none;
   touch-action: none;
@@ -37,17 +37,23 @@ body {
 }
 
 /* ---- 名前入力ダイアログ (src/ui/NameEntryDialog.ts) ---- */
+/* ゲーム画面と同じく、暗いパネルに細い発光線。角は斜めに落とし、丸みは付けない */
 
 .name-entry {
+  --cyan: #58e6ff;
+  --ice: #dcf7ff;
+  --orange: #ff9d42;
+  --line: rgba(88, 230, 255, 0.45);
+  --sub: #6b88a2;
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(7, 8, 15, 0.7);
+  background: rgba(1, 3, 7, 0.75);
   font-family: system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
-  color: #eef0fa;
+  color: #e2f3ff;
 }
 
 .name-entry[hidden] {
@@ -56,46 +62,53 @@ body {
 
 .name-entry__card {
   width: min(100%, 360px);
-  padding: 24px 20px 20px;
-  border: 1px solid #262b4a;
-  border-radius: 16px;
-  background: #11142a;
+  padding: 26px 22px 22px;
+  background: rgba(3, 11, 18, 0.96);
+  /* 細い枠線を斜めに落とした角に沿わせるため、枠を背景の重ねで描く */
+  border: 1px solid var(--line);
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px),
+    calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+  box-shadow: inset 0 0 24px rgba(88, 230, 255, 0.06);
   text-align: center;
 }
 
 .name-entry__heading {
   margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-  color: #fcc419;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  color: var(--orange);
+  text-shadow: 0 0 8px rgba(255, 157, 66, 0.6);
 }
 
 .name-entry__score {
-  margin: 4px 0 20px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #8a90b4;
+  margin: 6px 0 22px;
+  font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Consolas, 'Roboto Mono', Menlo, monospace;
+  font-size: 14px;
+  letter-spacing: 0.15em;
+  color: var(--sub);
 }
 
 .name-entry__label {
   display: block;
   margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #8a90b4;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--sub);
 }
 
 .name-entry__input {
   width: 100%;
   height: 48px;
   padding: 0 14px;
-  border: 2px solid #262b4a;
-  border-radius: 10px;
-  background: #0b0e1f;
-  color: #eef0fa;
+  border: 1px solid rgba(88, 230, 255, 0.3);
+  border-radius: 0;
+  background: #020409;
+  color: var(--ice);
   /* 16px 未満だと iOS が入力時に画面をズームする */
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-align: center;
   user-select: text;
   -webkit-user-select: text;
@@ -104,38 +117,48 @@ body {
 
 .name-entry__input:focus {
   outline: none;
-  border-color: #4dabf7;
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px rgba(88, 230, 255, 0.35);
 }
 
 .name-entry__actions {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
 .name-entry__button {
   flex: 1;
   min-height: 48px;
-  border: none;
-  border-radius: 999px;
+  border: 1px solid;
+  border-radius: 0;
+  background: rgba(3, 11, 18, 0.92);
   font: inherit;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
   cursor: pointer;
   touch-action: manipulation;
+  transition: box-shadow 0.12s, border-color 0.12s;
 }
 
 .name-entry__button--primary {
-  background: #4dabf7;
-  color: #0b0e1f;
+  border-color: var(--cyan);
+  color: var(--ice);
 }
 
 .name-entry__button--secondary {
-  background: #2a3054;
-  color: #eef0fa;
+  border-color: rgba(111, 157, 255, 0.5);
+  color: #e2f3ff;
+}
+
+.name-entry__button:hover,
+.name-entry__button:active {
+  box-shadow: 0 0 12px rgba(88, 230, 255, 0.45);
+  border-color: var(--cyan);
 }
 
 .name-entry__button:focus-visible {
-  outline: 2px solid #eef0fa;
+  outline: 1px solid var(--ice);
   outline-offset: 2px;
 }

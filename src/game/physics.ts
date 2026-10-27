@@ -1,5 +1,5 @@
 import { circleRect, type Hit } from './collision.ts';
-import type { Ball, Paddle } from './types.ts';
+import type { Ball, Paddle, SafetyBar } from './types.ts';
 
 const DEG = Math.PI / 180;
 
@@ -55,11 +55,27 @@ export function bounceOffWalls(ball: Ball, bounds: Bounds): boolean {
   return hit;
 }
 
+/** 進行方向を angleDeg (度、時計回りが正) 回転させる。 */
+export function rotate(ball: Ball, angleDeg: number): void {
+  const a = angleDeg * DEG;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const { vx, vy } = ball;
+  ball.vx = vx * cos - vy * sin;
+  ball.vy = vx * sin + vy * cos;
+}
+
 /**
  * パドルでの反射。当たった位置 (中心からのずれ) で反射角が決まる。
+ * curve > 1 だと中央付近の角度が小さくなり、まっすぐ上へ返しやすくなる。
  * 下向きに進んでいて、ボール中心がパドル下端より上にあるときだけ反射する。
  */
-export function bounceOffPaddle(ball: Ball, paddle: Paddle, maxAngleDeg: number): boolean {
+export function bounceOffPaddle(
+  ball: Ball,
+  paddle: Paddle,
+  maxAngleDeg: number,
+  curve = 1,
+): boolean {
   if (ball.vy <= 0) return false;
   if (ball.y > paddle.y + paddle.height) return false;
 
@@ -69,8 +85,17 @@ export function bounceOffPaddle(ball: Ball, paddle: Paddle, maxAngleDeg: number)
 
   const half = paddle.width / 2 + ball.radius;
   const offset = Math.max(-1, Math.min(1, (ball.x - paddle.x) / half));
-  launchAtAngle(ball, offset * maxAngleDeg);
+  launchAtAngle(ball, Math.sign(offset) * Math.abs(offset) ** curve * maxAngleDeg);
   ball.y = paddle.y - ball.radius;
+  return true;
+}
+
+/** セーフティバー (画面幅いっぱいの床) での反射。角度はそのまま上下だけ反転する。 */
+export function bounceOffBar(ball: Ball, bar: SafetyBar): boolean {
+  if (ball.vy <= 0) return false;
+  if (ball.y + ball.radius < bar.y || ball.y > bar.y + bar.height + ball.radius) return false;
+  ball.vy = -Math.abs(ball.vy);
+  ball.y = bar.y - ball.radius;
   return true;
 }
 

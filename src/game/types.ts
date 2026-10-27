@@ -1,4 +1,4 @@
-import type { BrickType } from './config.ts';
+import type { BossAttackKind, BrickType, ItemKind } from './config.ts';
 
 export interface Ball {
   x: number;
@@ -21,6 +21,8 @@ export interface Paddle {
   prevX: number;
   width: number;
   height: number;
+  /** アイテム効果などで目指している幅。width はこの値へ徐々に近づく */
+  targetWidth: number;
 }
 
 export interface Brick {
@@ -32,20 +34,84 @@ export interface Brick {
   type: BrickType;
   hp: number;
   maxHp: number;
+  /** false なら何度当てても壊れない */
+  breakable: boolean;
+  dropsItems: boolean;
   score: number;
   /** 配置された行 (色分けに使用) */
   row: number;
   alive: boolean;
 }
 
+/** 落下中のアイテム。座標は中心 */
+export interface Item {
+  kind: ItemKind;
+  x: number;
+  y: number;
+  prevY: number;
+  width: number;
+  height: number;
+}
+
+/** パドルの下に出る、ボールを一時的に跳ね返すバー */
+export interface SafetyBar {
+  /** 上端の y */
+  y: number;
+  height: number;
+  charges: number;
+  maxCharges: number;
+  timeLeft: number;
+}
+
+export interface Boss {
+  /** 中心の x */
+  x: number;
+  prevX: number;
+  /** 上端の y */
+  y: number;
+  width: number;
+  height: number;
+  hp: number;
+  maxHp: number;
+  /** 被弾時の点滅の残り時間 */
+  flashTime: number;
+}
+
+/** ボスの攻撃の予告。表示中に避ける判断をしてもらう */
+export interface Telegraph {
+  kind: BossAttackKind;
+  time: number;
+  duration: number;
+  /** laser の照準位置 */
+  targetX: number;
+}
+
+export interface Bullet {
+  x: number;
+  y: number;
+  prevX: number;
+  prevY: number;
+  vx: number;
+  vy: number;
+  radius: number;
+}
+
+/** 照射中のレーザー (ボス下端から画面下まで) */
+export interface Laser {
+  x: number;
+  width: number;
+  timeLeft: number;
+}
+
 /**
- * title   : 開始画面
- * serve   : ボールがパドル上で発射待ち
- * playing : プレイ中
- * gameover: ライフ切れ
- * clear   : 全ステージクリア
+ * title     : 開始画面
+ * serve     : ボールがパドル上で発射待ち
+ * playing   : プレイ中
+ * stageclear: ステージクリア演出 (一定時間後に次のステージへ)
+ * gameover  : ライフ / HP 切れ
+ * clear     : 全ステージクリア
  */
-export type Phase = 'title' | 'serve' | 'playing' | 'gameover' | 'clear';
+export type Phase = 'title' | 'serve' | 'playing' | 'stageclear' | 'gameover' | 'clear';
 
 /** ロジックへの入力。デバイス (マウス/タッチ/キーボード) を抽象化したもの */
 export interface Controls {

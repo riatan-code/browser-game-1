@@ -9,7 +9,7 @@ export const GAME_HEIGHT = 900;
 export const FIXED_DT = 1 / 60;
 
 /** 画面の余白 (レターボックス) の色。 */
-export const LETTERBOX_COLOR = '#07080f';
+export const LETTERBOX_COLOR = '#010204';
 
 /** ランキング (端末内保存) */
 export const RANKING_CONFIG = {
@@ -20,6 +20,12 @@ export const RANKING_CONFIG = {
   size: 5,
   /** 名前の最大文字数 */
   nameMaxLength: 10,
+} as const;
+
+/** ステージのクリア状況 (端末内保存)。クリアしたステージの次がステージ選択で解放される */
+export const PROGRESS_CONFIG = {
+  /** 保存形式を変えたら末尾のバージョンを上げる */
+  storageKey: 'browser-game-1:breakout:progress:v1',
 } as const;
 
 /** X への投稿 */
